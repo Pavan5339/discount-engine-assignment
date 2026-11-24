@@ -1,87 +1,27 @@
-# Opptra Discount Engine — Base Implementation
+# Discount engine (Opptra FDE case study)
 
-This is the base implementation for the Opptra FDE Intern assignment.
-Fork this repo, complete the tasks in the assignment brief, and submit your GitHub link + Loom.
+Live demo: LIVE_URL_HERE
 
-## Running locally
+## Run locally (3 steps)
 
-```bash
-npm install
-npm run dev
-```
+1. `npm install`
+2. `npm run dev`
+3. Open http://localhost:5173 and click **Load sample data**.
 
-Open http://localhost:5173
+## What it does
 
-## Deploying
+- Item rules: the largest non-stackable saving wins, then stackable rules apply. Sample result: 1,104 / 629 / 509 / 2,499 / 382 / 809, subtotal 5,932, cart offer -593, final total 5,339.
+- Cart offer: checked against the sum of final item prices, shown as one separate line, hidden when under the threshold.
+- Natural language rules: text goes to `/api/parse-rule` (Netlify Function, Gemini, needs `GEMINI_API_KEY`). If that endpoint is missing or down, a built-in deterministic parser handles the same input. Either way the result is validated, shown in a confirmation step, and only added after Confirm. Vague input ("discount for big orders") returns an error and adds nothing.
+- PDF cart upload: PDF.js reads the table in the browser and replaces the cart; active rules are kept. A malformed row rejects the whole file so the old cart stays intact.
+- Rule/cart CSV imports are atomic for the same reason.
 
-```bash
-npm run build
-```
+## Design choices
 
-Deploy the `dist/` folder to Vercel, Netlify, or any static host.
-The live deployment URL must be in your README before submission.
+- Whole-rupee rounding matches the starter's expected results.
+- No partial PDF import, because a partial cart could give a wrong total without warning.
+- No OCR: the brief specifies a simple text table.
+- The built-in parser is a fallback, not an LLM. It is labelled as such in the UI.
+- Tests: `npm test`.
 
-## How to use
-
-1. Upload `sample-data/rules.csv` as the discount rules input
-2. Upload `sample-data/cart.csv` as the cart input
-3. Click **Calculate Discounts**
-
-## Project structure
-
-```
-src/
-  engine/
-    discountEngine.js   ← pure discount logic (no UI)
-    csvParser.js        ← CSV → typed objects
-  components/
-    CsvUploader.jsx     ← file upload area
-    DataTable.jsx       ← reusable table
-    ErrorBanner.jsx     ← parse error display
-  App.jsx               ← main UI + state
-  main.jsx              ← entry point
-
-sample-data/
-  rules.csv             ← sample discount rules
-  cart.csv              ← sample cart items
-```
-
-## CSV formats
-
-**rules.csv**
-
-| Column     | Type              | Example          |
-|------------|-------------------|------------------|
-| rule_id    | string            | RULE-01          |
-| scope      | brand \| platform | platform         |
-| applies_to | string            | Amazon India     |
-| type       | percentage \| flat| percentage       |
-| value      | number            | 15               |
-| stackable  | true \| false     | false            |
-
-**cart.csv**
-
-| Column     | Type   | Example      |
-|------------|--------|--------------|
-| item_id    | string | ITEM-01      |
-| product    | string | Cushion Cover|
-| brand      | string | Natura Casa  |
-| platform   | string | Amazon India |
-| base_price | number | 1299         |
-
-## Discount logic
-
-- When multiple non-stackable rules match an item, the one giving the **largest saving in rupees** is applied.
-- Rules marked `stackable: true` apply **on top of** the winning non-stackable rule.
-- If no rules match, the base price is returned with a "No offers available" note.
-
-## Expected results for the sample data
-
-| Item    | Base Price | Final Price | Reasoning                              |
-|---------|-----------|-------------|----------------------------------------|
-| ITEM-01 | Rs.1,299  | Rs.1,104    | Platform offer: 15% off (beats Rs.150) |
-| ITEM-02 | Rs.849    | Rs.629      | Brand offer: Rs.150 off + Platform 10% |
-| ITEM-03 | Rs.599    | Rs.509      | Platform offer: 15% off                |
-| ITEM-04 | Rs.2,499  | Rs.2,499    | No offers available                    |
-| ITEM-05 | Rs.449    | Rs.382      | Platform offer: 15% off                |
-| ITEM-06 | Rs.899    | Rs.809      | Platform offer: 10% off                |
+AI coding assistance was used, as the brief allows.
