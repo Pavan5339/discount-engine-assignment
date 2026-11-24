@@ -57,10 +57,10 @@ export function ruleMatchesItem(item, rule) {
  */
 export function calculateDiscountAmount(price, rule) {
   if (rule.type === 'percentage') {
-    return Math.round(price * rule.value / 100)
+    return Math.min(price, Math.round(price * rule.value / 100))
   }
   if (rule.type === 'flat') {
-    return rule.value
+    return Math.min(price, rule.value)
   }
   return 0
 }
@@ -171,4 +171,23 @@ export function processCart(cartItems, rules) {
  */
 export function cartTotal(results) {
   return results.reduce((sum, r) => sum + r.finalPrice, 0)
+}
+
+/** Cart rules see the post-item subtotal, not the original cart value.
+ * Thresholds all use the same subtotal. The largest non-stackable cart rule
+ * wins, then stackable cart rules apply in input order, like item rules.
+ */
+export function priceCart(cartItems, rules) {
+  const items = processCart(cartItems, rules)
+  const subtotal = cartTotal(items)
+  const eligible = cartItems.length ? rules.filter(r => r.scope === 'cart' && (r.thresholdOperator === 'gt' ? subtotal > r.minCartValue : subtotal >= r.minCartValue)) : []
+  const competing = eligible.filter(r => !r.stackable).sort((a,b) => calculateDiscountAmount(subtotal,b) - calculateDiscountAmount(subtotal,a))
+  const selected = [...competing.slice(0,1), ...eligible.filter(r => r.stackable)]
+  let total = subtotal
+  const cartOffers = selected.map(r => {
+    const saving = Math.min(total, calculateDiscountAmount(total,r))
+    total -= saving
+    return { ruleId: r.ruleId, saving, reasoning: `Cart offer: ${r.value}% off`, threshold: r.minCartValue }
+  })
+  return { items, subtotal, cartOffers, total, savings: cartItems.reduce((sum, i) => sum + i.basePrice, 0) - total }
 }
