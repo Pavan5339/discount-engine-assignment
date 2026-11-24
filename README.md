@@ -1,6 +1,6 @@
 # Discount engine (Opptra FDE case study)
 
-Live demo: LIVE_URL_HERE
+Live demo: https://pavan5339.github.io/discount-engine-assignment/
 
 ## Run locally (3 steps)
 
